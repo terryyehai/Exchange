@@ -1,9 +1,10 @@
 import axios from 'axios';
 import type { ExchangeRate, IRateRepository } from '../core/domain/entities';
+import { db } from './firebase';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 
 /**
  * 實作外部 API 串接 (Infrastructure Layer)
- * 使用 ExchangeRate-API (免費版)
  */
 export class ApiRateRepository implements IRateRepository {
     private readonly latestUrl = 'https://api.exchangerate-api.com/v4/latest';
@@ -25,7 +26,6 @@ export class ApiRateRepository implements IRateRepository {
 
     async getHistoricalRates(base: string, date: string): Promise<ExchangeRate> {
         try {
-            // 使用 Frankfurter API 獲取歷史數據 (例如: 2024-01-20)
             const response = await axios.get(`${this.historyUrl}/${date}?from=${base}`);
             return {
                 base: response.data.base,
@@ -40,7 +40,6 @@ export class ApiRateRepository implements IRateRepository {
 
     async getTimeSeriesRates(base: string, start: string, end: string, target: string): Promise<Record<string, number>> {
         try {
-            // https://api.frankfurter.app/2024-01-01..2024-01-31?from=JPY&to=USD
             const response = await axios.get(`${this.historyUrl}/${start}..${end}?from=${base}&to=${target}`);
             const result: Record<string, number> = {};
             if (response.data.rates) {
@@ -57,7 +56,7 @@ export class ApiRateRepository implements IRateRepository {
 }
 
 /**
- * 本地儲存管理 (依據規格對齊匯存結構)
+ * 本地儲存與雲端同步管理 (Phase 5: Cloud Sync)
  */
 export interface UserSettings {
     baseCurrency: string;
@@ -88,5 +87,29 @@ export class LocalStorageManager {
         const current = this.getSettings();
         const updated = { ...current, ...settings, lastUpdated: Date.now() };
         localStorage.setItem(this.STORAGE_KEY, JSON.stringify(updated));
+    }
+
+    /**
+     * 向雲端同步資料 (Firebase / Firestore)
+     */
+    async syncToCloud(uid: string): Promise<void> {
+        const localSettings = this.getSettings();
+        try {
+            const userRef = doc(db, 'users', uid);
+            const userSnap = await getDoc(userRef);
+
+            if (userSnap.exists()) {
+                const cloudSettings = userSnap.data() as UserSettings;
+                if (cloudSettings.lastUpdated > localSettings.lastUpdated) {
+                    this.saveSettings(cloudSettings);
+                } else if (cloudSettings.lastUpdated < localSettings.lastUpdated) {
+                    await updateDoc(userRef, { ...localSettings });
+                }
+            } else {
+                await setDoc(userRef, { ...localSettings });
+            }
+        } catch (error) {
+            console.error('Cloud Sync Error:', error);
+        }
     }
 }

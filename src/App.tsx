@@ -10,6 +10,7 @@ const App: React.FC = () => {
   const [view, setView] = useState<'list' | 'input' | 'picker' | 'chart'>('list');
   const [inputAmount, setInputAmount] = useState<string>('0');
   const [selectedChartCode, setSelectedChartCode] = useState<string>('USD');
+  const [chartDays, setChartDays] = useState<number>(30); // 預設 30 天
   const {
     rates,
     convert,
@@ -38,12 +39,12 @@ const App: React.FC = () => {
     }
   };
 
-  // 當切換到圖表視圖時，獲取歷史數據
+  // 當切換到圖表視圖、切換貨幣或切換時間範圍時，獲取歷史數據
   React.useEffect(() => {
     if (view === 'chart') {
-      fetchHistory(settings.baseCurrency, selectedChartCode, 30);
+      fetchHistory(settings.baseCurrency, selectedChartCode, chartDays);
     }
-  }, [view, selectedChartCode, fetchHistory, settings.baseCurrency]);
+  }, [view, selectedChartCode, chartDays, fetchHistory, settings.baseCurrency]);
 
   return (
     <div className="app-container">
@@ -231,7 +232,12 @@ const App: React.FC = () => {
             </div>
 
             {historyData && historyData.length > 0 ? (
-              <RateChart currencyCode={selectedChartCode} data={historyData} />
+              <RateChart
+                currencyCode={selectedChartCode}
+                data={historyData}
+                currentRange={chartDays}
+                onRangeChange={setChartDays}
+              />
             ) : (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#444' }}>
                 載入歷史數據中...

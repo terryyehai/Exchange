@@ -77,11 +77,7 @@ export const useExchangeRate = () => {
         const startStr = start.toISOString().split('T')[0];
 
         try {
-            const data: Record<string, number> = await getTimeSeriesUseCase.execute(base, startStr, end, target);
-            const chartData = Object.keys(data).map(date => ({
-                date: date.split('-').slice(1).join('/'), // MM/DD
-                rate: data[date] as number
-            })).sort((a, b) => a.date.localeCompare(b.date));
+            const chartData = await getTimeSeriesUseCase.execute(base, startStr, end, target);
             setHistoryData(chartData);
         } catch (err) {
             console.error('History fetch error:', err);

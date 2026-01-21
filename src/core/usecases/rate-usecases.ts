@@ -45,3 +45,23 @@ export class GetHistoryRates {
         return await this.rateRepo.getHistoricalRates(base, date);
     }
 }
+
+/**
+ * 獲取匯率走勢數據的 Use Case
+ */
+export class GetTimeSeriesRates {
+    private rateRepo: IRateRepository;
+
+    constructor(rateRepo: IRateRepository) {
+        this.rateRepo = rateRepo;
+    }
+
+    async execute(base: string, start: string, end: string, target: string): Promise<any[]> {
+        const raw = await this.rateRepo.getTimeSeriesRates(base, start, end, target);
+        // 轉換為 Recharts 格式: [{ date: '01/01', rate: 1.23 }, ...]
+        return Object.keys(raw).map(date => ({
+            date: date.slice(5), // 只取 MM-DD 方便顯示
+            rate: raw[date]
+        })).sort((a, b) => a.date.localeCompare(b.date));
+    }
+}

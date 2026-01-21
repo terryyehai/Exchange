@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { ApiRateRepository, LocalStorageManager } from '../../infrastructure/repositories';
-import { GetLatestRates, ConvertCurrency, GetHistoryRates } from '../../core/usecases/rate-usecases';
+import { GetLatestRates, ConvertCurrency, GetHistoryRates, GetTimeSeriesRates } from '../../core/usecases/rate-usecases';
 import type { ExchangeRate } from '../../core/domain/entities';
 import { getCurrencyName } from '../../core/domain/currency-map';
 
@@ -8,6 +8,7 @@ const rateRepo = new ApiRateRepository();
 const storage = new LocalStorageManager();
 const getRatesUseCase = new GetLatestRates(rateRepo);
 const getHistoryUseCase = new GetHistoryRates(rateRepo);
+const getTimeSeriesUseCase = new GetTimeSeriesRates(rateRepo);
 const convertUseCase = new ConvertCurrency();
 
 /**
@@ -17,6 +18,7 @@ export const useExchangeRate = () => {
     const [settings, setSettings] = useState(storage.getSettings());
     const [rates, setRates] = useState<ExchangeRate | null>(null);
     const [prevRates, setPrevRates] = useState<ExchangeRate | null>(null);
+    const [historyData, setHistoryData] = useState<any[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState<string>('');
@@ -45,6 +47,20 @@ export const useExchangeRate = () => {
             setError(err instanceof Error ? err.message : '未知錯誤');
         } finally {
             setLoading(false);
+        }
+    }, []);
+
+    const fetchHistory = useCallback(async (base: string, target: string, days: number = 30) => {
+        const end = new Date().toISOString().split('T')[0];
+        const start = new Date();
+        start.setDate(start.getDate() - days);
+        const startStr = start.toISOString().split('T')[0];
+
+        try {
+            const data = await getTimeSeriesUseCase.execute(base, startStr, end, target);
+            setHistoryData(data);
+        } catch (err) {
+            console.error('History fetch error:', err);
         }
     }, []);
 
@@ -119,11 +135,13 @@ export const useExchangeRate = () => {
     return {
         rates,
         prevRates,
+        historyData,
         loading,
         error,
         settings,
         convert,
         getRateChange,
+        fetchHistory,
         toggleFavorite,
         setBaseCurrency,
         refresh: () => fetchRates(settings.baseCurrency),

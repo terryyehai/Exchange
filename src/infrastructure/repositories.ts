@@ -37,6 +37,23 @@ export class ApiRateRepository implements IRateRepository {
             throw new Error(`無法獲取 ${date} 的歷史匯率。`);
         }
     }
+
+    async getTimeSeriesRates(base: string, start: string, end: string, target: string): Promise<Record<string, number>> {
+        try {
+            // https://api.frankfurter.app/2024-01-01..2024-01-31?from=JPY&to=USD
+            const response = await axios.get(`${this.historyUrl}/${start}..${end}?from=${base}&to=${target}`);
+            const result: Record<string, number> = {};
+            if (response.data.rates) {
+                Object.keys(response.data.rates).forEach(date => {
+                    result[date] = response.data.rates[date][target];
+                });
+            }
+            return result;
+        } catch (error) {
+            console.error('TimeSeries API Error:', error);
+            return {};
+        }
+    }
 }
 
 /**

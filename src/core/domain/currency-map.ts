@@ -17,6 +17,16 @@ export const currencyToCountry: Record<string, string> = {
 };
 
 /**
+ * 貨幣符號映射
+ */
+export const currencySymbols: Record<string, string> = {
+    USD: '$', TWD: 'NT$', JPY: '¥', EUR: '€', CNY: 'CN¥',
+    HKD: 'HK$', KRW: '₩', SGD: 'S$', GBP: '£', CHF: 'Fr',
+    AUD: 'A$', CAD: 'C$', NZD: 'NZ$', THB: '฿', PHP: '₱',
+    VND: '₫', MYR: 'RM', IDR: 'Rp', INR: '₹', ISK: 'kr'
+};
+
+/**
  * 獲取國旗 URL
  */
 export const getFlagUrl = (currencyCode: string): string => {

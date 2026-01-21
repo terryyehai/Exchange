@@ -1,132 +1,159 @@
 import React, { useState } from 'react';
 import { useExchangeRate } from './presentation/hooks/useExchangeRate';
 import './presentation/styles/global.css';
-import { RefreshCw, Search, DollarSign, Globe } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Repeat, TrendingUp, X, Delete, Check, CheckCircle, Circle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getFlagUrl, getCurrencyName } from './core/domain/currency-map';
+import { getFlagUrl, getCurrencyName, currencySymbols } from './core/domain/currency-map';
 
 const App: React.FC = () => {
-  const [amount, setAmount] = useState<number>(1000);
+  const [view, setView] = useState<'list' | 'input' | 'picker'>('list');
+  const [inputAmount, setInputAmount] = useState<string>('0');
   const {
     rates,
-    loading,
-    error,
     convert,
-    refresh,
+    filteredCurrencies,
     searchTerm,
     setSearchTerm,
-    filteredCurrencies,
-    toggleFavorite
+    toggleFavorite,
+    favorites
   } = useExchangeRate('USD');
 
+  const handleKeyPress = (key: string) => {
+    if (key === 'backspace') {
+      setInputAmount(prev => prev.length > 1 ? prev.slice(0, -1) : '0');
+    } else if (key === '.') {
+      if (!inputAmount.includes('.')) setInputAmount(prev => prev + '.');
+    } else if (key === '10K') { setInputAmount('10000'); }
+    else if (key === '1K') { setInputAmount('1000'); }
+    else if (key === '100') { setInputAmount('100'); }
+    else if (key === '10') { setInputAmount('10'); }
+    else {
+      setInputAmount(prev => prev === '0' ? key : prev + key);
+    }
+  };
+
   return (
-    <div className="container">
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="glass-card"
-      >
-        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <h1>即時匯率換算</h1>
-            <p className="subtitle">支援全球 150+ 貨幣・國旗顯示</p>
-          </div>
-          <button
-            onClick={refresh}
-            className={`refresh-btn ${loading ? 'spinning' : ''}`}
-            title="刷新數據"
-            style={{
-              background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-              color: '#fff', cursor: 'pointer', padding: '10px', borderRadius: '12px'
-            }}
-          >
-            <RefreshCw size={18} />
-          </button>
-        </header>
-
-        <div className="input-section">
-          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#94a3b8', fontSize: '0.85rem', marginBottom: '8px' }}>
-            <DollarSign size={14} /> 輸入欲換算金額 (USD)
-          </label>
-          <input
-            type="number"
-            className="currency-input"
-            value={amount}
-            onChange={(e) => setAmount(Number(e.target.value))}
-            placeholder="0.00"
-          />
-        </div>
-
-        <div className="search-container">
-          <Search className="search-icon" size={18} />
-          <input
-            type="text"
-            placeholder="搜尋國家名稱或代碼 (例如: 日本, JPY)"
-            className="search-input"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-
-        <section>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
-            <Globe size={18} color="#8b5cf6" />
-            <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#cbd5e1' }}>
-              {searchTerm ? '搜尋結果' : '常用匯率對照'}
-            </span>
-          </div>
-
-          {error && <div className="error-msg">{error}</div>}
-
-          <div className="favorites-grid">
-            <AnimatePresence mode="popLayout">
-              {filteredCurrencies.map((code) => (
-                <motion.div
-                  key={code}
-                  layout
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.2 }}
-                  className="exchange-item"
-                  onClick={() => toggleFavorite(code)}
-                >
-                  <div className="item-left">
-                    <div className="flag-box">
-                      <img src={getFlagUrl(code)} alt={code} className="flag-img" loading="lazy" />
-                    </div>
-                    <div className="name-box">
-                      <span className="currency-zh">{getCurrencyName(code)}</span>
-                      <span className="currency-code">{code}</span>
-                    </div>
-                  </div>
-                  <div className="item-right">
-                    <span className="converted-value">
-                      {loading ? '---' : convert(amount, code).toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                    </span>
-                    <div className="rate-info">
-                      1 USD = {rates?.rates[code]?.toFixed(2)} {code}
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
-
-          {!searchTerm && filteredCurrencies.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
-              尚未設定常用幣別，請使用上方搜尋框加入。
+    <div className="app-container">
+      {/* 1. 主清單視圖 (Image 1) */}
+      {view === 'list' && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <header className="native-header">
+            <span className="native-title">Currency</span>
+            <div className="header-icons">
+              <Plus size={28} onClick={() => { setSearchTerm(''); setView('picker'); }} />
+              <MoreHorizontal size={28} />
             </div>
-          )}
-        </section>
+          </header>
 
-        <footer style={{ marginTop: '40px', textAlign: 'center', fontSize: '0.75rem', color: '#475569', letterSpacing: '0.05em' }}>
-          資料更新：{rates?.date || '載入中...'} ・ {new Date().toLocaleTimeString()}
-        </footer>
-      </motion.div>
+          <div className="native-list">
+            {favorites.map(code => (
+              <div key={code} className="native-item" onClick={() => setView('input')}>
+                <div className="item-left">
+                  <img src={getFlagUrl(code)} alt={code} className="round-flag" />
+                  <div className="info-stacked">
+                    <span className="name-primary">{getCurrencyName(code)}</span>
+                    <span className="code-secondary">{code}</span>
+                  </div>
+                </div>
+                <div className="value-bubble">
+                  {currencySymbols[code] || ''} {convert(Number(inputAmount), code).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <nav className="bottom-nav">
+            <div className="nav-item active">
+              <Repeat size={24} />
+              <span>轉換</span>
+            </div>
+            <div className="nav-item">
+              <TrendingUp size={24} />
+              <span>匯率圖</span>
+            </div>
+          </nav>
+        </motion.div>
+      )}
+
+      {/* 2. 數字鍵盤輸入 (Image 3) */}
+      <AnimatePresence>
+        {view === 'input' && (
+          <motion.div
+            className="keypad-view"
+            initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+          >
+            <div className="input-header">
+              <div className="item-left">
+                <img src={getFlagUrl('TWD')} alt="TWD" className="round-flag" />
+                <div className="info-stacked">
+                  <span className="name-primary">新台幣</span>
+                  <span className="code-secondary">TWD</span>
+                </div>
+              </div>
+              <button onClick={() => setView('list')} style={{ background: 'none', border: 'none', color: 'white' }}>
+                <X size={28} />
+              </button>
+            </div>
+            <div className="big-amount-display">
+              {inputAmount === '0' ? '輸入金額' : inputAmount}
+            </div>
+            <div className="keypad-grid">
+              {['7', '8', '9', '10K', '4', '5', '6', '1K', '1', '2', '3', '100', '0', '.', 'backspace', '10'].map(k => (
+                <button key={k} className={`key-btn ${k.includes('K') || (Number(k) >= 10) ? 'quick' : ''}`} onClick={() => handleKeyPress(k)}>
+                  {k === 'backspace' ? <Delete size={24} /> : k}
+                </button>
+              ))}
+            </div>
+            <button className="convert-pill" onClick={() => setView('list')}>轉換</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 3. 添加貨幣選擇器 (Image 2) */}
+      <AnimatePresence>
+        {view === 'picker' && (
+          <motion.div
+            className="keypad-view" style={{ background: '#121212' }}
+            initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+          >
+            <header className="native-header" style={{ padding: '20px 0' }}>
+              <span className="native-title" style={{ fontSize: '20px' }}>添加貨幣</span>
+              <div className="header-icons">
+                <button onClick={() => setView('list')} style={{ background: '#2ed158', border: 'none', borderRadius: '50%', color: 'white', padding: '4px' }}>
+                  <Check size={24} />
+                </button>
+              </div>
+            </header>
+
+            <div className="search-container" style={{ margin: '0 0 20px 0' }}>
+              <Search className="search-icon" size={18} />
+              <input
+                type="text" placeholder="貨幣、國家、地區或代碼"
+                className="search-input" value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+
+            <div className="native-list" style={{ flex: 1, overflowY: 'auto', paddingBottom: '40px' }}>
+              {rates && filteredCurrencies.map(code => (
+                <div key={code} className="native-item" onClick={() => toggleFavorite(code)}>
+                  <div className="item-left">
+                    <img src={getFlagUrl(code)} alt={code} className="round-flag" />
+                    <div className="info-stacked">
+                      <span className="name-primary">{getCurrencyName(code)}</span>
+                      <span className="code-secondary">{code}</span>
+                    </div>
+                  </div>
+                  {favorites.includes(code) ? <CheckCircle size={24} color="#2ed158" /> : <Circle size={24} color="#333" />}
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
-}
+};
 
 export default App;

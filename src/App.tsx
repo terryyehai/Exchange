@@ -8,7 +8,7 @@ import { RateChart } from './presentation/components/RateChart';
 
 const App: React.FC = () => {
   const [view, setView] = useState<'list' | 'input' | 'picker' | 'chart'>('list');
-  const [inputAmount, setInputAmount] = useState<string>('1');
+  const [inputAmount, setInputAmount] = useState<string>('1000.00');
   const [sourceCurrency, setSourceCurrency] = useState<string>('TWD'); // 預設來源幣別
   const [selectedChartCode, setSelectedChartCode] = useState<string>('USD');
   const [chartDays, setChartDays] = useState<number>(30);

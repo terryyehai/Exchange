@@ -6,19 +6,35 @@ import type { ExchangeRate, IRateRepository } from '../core/domain/entities';
  * 使用 ExchangeRate-API (免費版)
  */
 export class ApiRateRepository implements IRateRepository {
-    private readonly baseUrl = 'https://api.exchangerate-api.com/v4/latest';
+    private readonly latestUrl = 'https://api.exchangerate-api.com/v4/latest';
+    private readonly historyUrl = 'https://api.frankfurter.app';
 
     async getLatestRates(base: string): Promise<ExchangeRate> {
         try {
-            const response = await axios.get(`${this.baseUrl}/${base}`);
+            const response = await axios.get(`${this.latestUrl}/${base}`);
             return {
                 base: response.data.base,
                 date: response.data.date,
                 rates: response.data.rates,
             };
         } catch (error) {
-            console.error('API Error:', error);
-            throw new Error('無法從遠端 API 獲取匯率，請檢查網路連線。');
+            console.error('Latest API Error:', error);
+            throw new Error('無法獲取最新匯率。');
+        }
+    }
+
+    async getHistoricalRates(base: string, date: string): Promise<ExchangeRate> {
+        try {
+            // 使用 Frankfurter API 獲取歷史數據 (例如: 2024-01-20)
+            const response = await axios.get(`${this.historyUrl}/${date}?from=${base}`);
+            return {
+                base: response.data.base,
+                date: response.data.date,
+                rates: response.data.rates,
+            };
+        } catch (error) {
+            console.error('History API Error:', error);
+            throw new Error(`無法獲取 ${date} 的歷史匯率。`);
         }
     }
 }

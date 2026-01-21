@@ -95,6 +95,30 @@ body {
   font-size: 16px;
 }
 
+.item-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.rate-change {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.rate-change.up {
+  color: #2ed158;
+  background: rgba(46, 209, 88, 0.15);
+}
+
+.rate-change.down {
+  color: #ff453a;
+  background: rgba(255, 69, 58, 0.15);
+}
+
 /* --- Keyboard View --- */
 .keypad-view {
   position: fixed;

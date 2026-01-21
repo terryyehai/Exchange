@@ -30,3 +30,18 @@ export class ConvertCurrency {
         return Number(result.toFixed(4));
     }
 }
+
+/**
+ * 獲取歷史匯率的 Use Case
+ */
+export class GetHistoryRates {
+    private rateRepo: IRateRepository;
+
+    constructor(rateRepo: IRateRepository) {
+        this.rateRepo = rateRepo;
+    }
+
+    async execute(base: string, date: string): Promise<ExchangeRate> {
+        return await this.rateRepo.getHistoricalRates(base, date);
+    }
+}

@@ -21,4 +21,5 @@ export interface Currency {
  */
 export interface IRateRepository {
   getLatestRates(base: string): Promise<ExchangeRate>;
+  getHistoricalRates(base: string, date: string): Promise<ExchangeRate>;
 }

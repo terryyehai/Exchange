@@ -64,20 +64,30 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            {settings.favoriteCurrencies.filter(c => c !== 'JPY').map(code => (
-              <div key={code} className="native-item" onClick={() => setView('input')}>
-                <div className="item-left">
-                  <img src={getFlagUrl(code)} alt={code} className="round-flag" />
-                  <div className="info-stacked">
-                    <span className="name-primary">{getCurrencyName(code)}</span>
-                    <span className="code-secondary">{code}</span>
+            {settings.favoriteCurrencies.filter(c => c !== 'JPY').map(code => {
+              const change = getRateChange(code);
+              return (
+                <div key={code} className="native-item" onClick={() => setView('input')}>
+                  <div className="item-left">
+                    <img src={getFlagUrl(code)} alt={code} className="round-flag" />
+                    <div className="info-stacked">
+                      <span className="name-primary">{getCurrencyName(code)}</span>
+                      <span className="code-secondary">{code}</span>
+                    </div>
+                  </div>
+                  <div className="item-right">
+                    <div className="value-bubble">
+                      {currencySymbols[code] || ''} {formatCurrencyValue(convert(Number(inputAmount) || 1, code))}
+                    </div>
+                    {change && (
+                      <span className={`rate-change ${change.isUp ? 'up' : 'down'}`}>
+                        {change.percent}
+                      </span>
+                    )}
                   </div>
                 </div>
-                <div className="value-bubble">
-                  {currencySymbols[code] || ''} {formatCurrencyValue(convert(Number(inputAmount) || 1, code))}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <nav className="bottom-nav">

@@ -1,20 +1,22 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { ApiRateRepository, LocalStorageManager } from '../../infrastructure/repositories';
-import { GetLatestRates, ConvertCurrency } from '../../core/usecases/rate-usecases';
+import { GetLatestRates, ConvertCurrency, GetHistoryRates } from '../../core/usecases/rate-usecases';
 import type { ExchangeRate } from '../../core/domain/entities';
 import { getCurrencyName } from '../../core/domain/currency-map';
 
 const rateRepo = new ApiRateRepository();
 const storage = new LocalStorageManager();
 const getRatesUseCase = new GetLatestRates(rateRepo);
+const getHistoryUseCase = new GetHistoryRates(rateRepo);
 const convertUseCase = new ConvertCurrency();
 
 /**
- * 匯率邏輯 Custom Hook (Phase 4: 規格對齊)
+ * 匯率邏輯 Custom Hook (Phase 5: 動態趨勢偵測)
  */
 export const useExchangeRate = () => {
     const [settings, setSettings] = useState(storage.getSettings());
     const [rates, setRates] = useState<ExchangeRate | null>(null);
+    const [prevRates, setPrevRates] = useState<ExchangeRate | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState<string>('');
@@ -22,8 +24,22 @@ export const useExchangeRate = () => {
     const fetchRates = useCallback(async (base: string) => {
         setLoading(true);
         try {
-            const data = await getRatesUseCase.execute(base);
-            setRates(data);
+            // 獲取最新匯率
+            const currentData = await getRatesUseCase.execute(base);
+            setRates(currentData);
+
+            // 獲取昨日匯率 (簡單計算昨日日期 YYYY-MM-DD)
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const dateStr = yesterday.toISOString().split('T')[0];
+
+            try {
+                const historyData = await getHistoryUseCase.execute(base, dateStr);
+                setPrevRates(historyData);
+            } catch (hErr) {
+                console.warn('無法獲取歷史匯率，漲跌功能將停用:', hErr);
+            }
+
             setError(null);
         } catch (err) {
             setError(err instanceof Error ? err.message : '未知錯誤');
@@ -39,9 +55,25 @@ export const useExchangeRate = () => {
     const convert = (amount: number, targetCurrency: string): number => {
         if (!rates) return 0;
         const toRate = rates.rates[targetCurrency] || 0;
-        // 規格要求: Result = Amount * (ToRate / FromRate)
-        // 這裡因為 base 就是 JPY，如果 FromRate = 1 則直接乘
         return convertUseCase.execute(amount, 1, toRate);
+    };
+
+    /**
+     * 計算匯率變動百分比
+     */
+    const getRateChange = (code: string): { value: number; percent: string; isUp: boolean } | null => {
+        if (!rates || !prevRates) return null;
+        const current = rates.rates[code];
+        const prev = prevRates.rates[code];
+        if (!current || !prev) return null;
+
+        const diff = current - prev;
+        const percent = (diff / prev) * 100;
+        return {
+            value: diff,
+            percent: (diff >= 0 ? '+' : '') + percent.toFixed(2) + '%',
+            isUp: diff >= 0
+        };
     };
 
     const toggleFavorite = (code: string) => {
@@ -51,7 +83,6 @@ export const useExchangeRate = () => {
         if (isFavorite) {
             newFavorites = newFavorites.filter(c => c !== code);
         } else {
-            // 規格限制: 上限 20 種
             if (newFavorites.length >= 20) {
                 alert('已達到 20 種貨幣上限');
                 return;
@@ -70,9 +101,6 @@ export const useExchangeRate = () => {
         storage.saveSettings(newSettings);
     };
 
-    /**
-     * 過濾後的貨幣列表 (依照搜尋或常用)
-     */
     const filteredCurrencies = useMemo(() => {
         if (!rates) return [];
         const allCodes = Object.keys(rates.rates);
@@ -90,10 +118,12 @@ export const useExchangeRate = () => {
 
     return {
         rates,
+        prevRates,
         loading,
         error,
         settings,
         convert,
+        getRateChange,
         toggleFavorite,
         setBaseCurrency,
         refresh: () => fetchRates(settings.baseCurrency),

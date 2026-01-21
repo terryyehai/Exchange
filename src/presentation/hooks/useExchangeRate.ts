@@ -10,13 +10,13 @@ const getRatesUseCase = new GetLatestRates(rateRepo);
 const convertUseCase = new ConvertCurrency();
 
 /**
- * 匯率邏輯 Custom Hook (Phase 2)
+ * 匯率邏輯 Custom Hook (Phase 4: 規格對齊)
  */
-export const useExchangeRate = (baseCurrency: string = 'USD') => {
+export const useExchangeRate = () => {
+    const [settings, setSettings] = useState(storage.getSettings());
     const [rates, setRates] = useState<ExchangeRate | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
-    const [favorites, setFavorites] = useState<string[]>(storage.getFavorites());
     const [searchTerm, setSearchTerm] = useState<string>('');
 
     const fetchRates = useCallback(async (base: string) => {
@@ -33,21 +33,41 @@ export const useExchangeRate = (baseCurrency: string = 'USD') => {
     }, []);
 
     useEffect(() => {
-        fetchRates(baseCurrency);
-    }, [baseCurrency, fetchRates]);
+        fetchRates(settings.baseCurrency);
+    }, [settings.baseCurrency, fetchRates]);
 
     const convert = (amount: number, targetCurrency: string): number => {
         if (!rates) return 0;
         const toRate = rates.rates[targetCurrency] || 0;
+        // 規格要求: Result = Amount * (ToRate / FromRate)
+        // 這裡因為 base 就是 JPY，如果 FromRate = 1 則直接乘
         return convertUseCase.execute(amount, 1, toRate);
     };
 
     const toggleFavorite = (code: string) => {
-        const newFavorites = favorites.includes(code)
-            ? favorites.filter(c => c !== code)
-            : [...favorites, code];
-        setFavorites(newFavorites);
-        storage.saveFavorites(newFavorites);
+        const isFavorite = settings.favoriteCurrencies.includes(code);
+        let newFavorites = [...settings.favoriteCurrencies];
+
+        if (isFavorite) {
+            newFavorites = newFavorites.filter(c => c !== code);
+        } else {
+            // 規格限制: 上限 20 種
+            if (newFavorites.length >= 20) {
+                alert('已達到 20 種貨幣上限');
+                return;
+            }
+            newFavorites.push(code);
+        }
+
+        const newSettings = { ...settings, favoriteCurrencies: newFavorites };
+        setSettings(newSettings);
+        storage.saveSettings(newSettings);
+    };
+
+    const setBaseCurrency = (code: string) => {
+        const newSettings = { ...settings, baseCurrency: code };
+        setSettings(newSettings);
+        storage.saveSettings(newSettings);
     };
 
     /**
@@ -57,27 +77,26 @@ export const useExchangeRate = (baseCurrency: string = 'USD') => {
         if (!rates) return [];
         const allCodes = Object.keys(rates.rates);
 
-        // 如果有搜尋字串，過濾所有幣別
         if (searchTerm.trim()) {
             const term = searchTerm.toLowerCase();
             return allCodes.filter(code =>
                 code.toLowerCase().includes(term) ||
                 getCurrencyName(code).includes(term)
-            ).slice(0, 20); // 限制顯示數量以效能優化
+            ).slice(0, 50);
         }
 
-        // 預設顯示常用國家
-        return favorites;
-    }, [rates, searchTerm, favorites]);
+        return settings.favoriteCurrencies;
+    }, [rates, searchTerm, settings.favoriteCurrencies]);
 
     return {
         rates,
         loading,
         error,
-        favorites,
+        settings,
         convert,
         toggleFavorite,
-        refresh: () => fetchRates(baseCurrency),
+        setBaseCurrency,
+        refresh: () => fetchRates(settings.baseCurrency),
         searchTerm,
         setSearchTerm,
         filteredCurrencies

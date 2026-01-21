@@ -3,10 +3,11 @@ import { useExchangeRate } from './presentation/hooks/useExchangeRate';
 import './presentation/styles/global.css';
 import { Search, Plus, MoreHorizontal, Repeat, TrendingUp, X, Delete, Check, CheckCircle, Circle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getFlagUrl, getCurrencyName, currencySymbols } from './core/domain/currency-map';
+import { getFlagUrl, getCurrencyName, currencySymbols, formatCurrencyValue } from './core/domain/currency-map';
+import { RateChart } from './presentation/components/RateChart';
 
 const App: React.FC = () => {
-  const [view, setView] = useState<'list' | 'input' | 'picker'>('list');
+  const [view, setView] = useState<'list' | 'input' | 'picker' | 'chart'>('list');
   const [inputAmount, setInputAmount] = useState<string>('0');
   const {
     rates,
@@ -15,8 +16,9 @@ const App: React.FC = () => {
     searchTerm,
     setSearchTerm,
     toggleFavorite,
-    favorites
-  } = useExchangeRate('USD');
+    settings,
+    error
+  } = useExchangeRate();
 
   const handleKeyPress = (key: string) => {
     if (key === 'backspace') {
@@ -34,19 +36,35 @@ const App: React.FC = () => {
 
   return (
     <div className="app-container">
-      {/* 1. 主清單視圖 (Image 1) */}
+      {/* 1. 主清單視圖 (Image 1 + Spec) */}
       {view === 'list' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <header className="native-header">
-            <span className="native-title">Currency</span>
+            <span className="native-title">FX Currency</span>
             <div className="header-icons">
               <Plus size={28} onClick={() => { setSearchTerm(''); setView('picker'); }} />
               <MoreHorizontal size={28} />
             </div>
           </header>
 
+          {error && <div style={{ color: '#ff3b30', padding: '0 10px', fontSize: '12px', marginBottom: '10px' }}>{error}</div>}
+
           <div className="native-list">
-            {favorites.map(code => (
+            {/* JPY 基準列 (固定顯示) */}
+            <div className="native-item" key="base-jpy">
+              <div className="item-left">
+                <img src={getFlagUrl('JPY')} alt="JPY" className="round-flag" />
+                <div className="info-stacked">
+                  <span className="name-primary">日圓</span>
+                  <span className="code-secondary">JPY</span>
+                </div>
+              </div>
+              <div className="value-bubble" style={{ opacity: 0.8 }}>
+                ¥1
+              </div>
+            </div>
+
+            {settings.favoriteCurrencies.filter(c => c !== 'JPY').map(code => (
               <div key={code} className="native-item" onClick={() => setView('input')}>
                 <div className="item-left">
                   <img src={getFlagUrl(code)} alt={code} className="round-flag" />
@@ -56,18 +74,18 @@ const App: React.FC = () => {
                   </div>
                 </div>
                 <div className="value-bubble">
-                  {currencySymbols[code] || ''} {convert(Number(inputAmount), code).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                  {currencySymbols[code] || ''} {formatCurrencyValue(convert(Number(inputAmount) || 1, code))}
                 </div>
               </div>
             ))}
           </div>
 
           <nav className="bottom-nav">
-            <div className="nav-item active">
+            <div className="nav-item active" onClick={() => setView('list')}>
               <Repeat size={24} />
               <span>轉換</span>
             </div>
-            <div className="nav-item">
+            <div className="nav-item" onClick={() => setView('chart')}>
               <TrendingUp size={24} />
               <span>匯率圖</span>
             </div>
@@ -85,10 +103,10 @@ const App: React.FC = () => {
           >
             <div className="input-header">
               <div className="item-left">
-                <img src={getFlagUrl('TWD')} alt="TWD" className="round-flag" />
+                <img src={getFlagUrl('JPY')} alt="JPY" className="round-flag" />
                 <div className="info-stacked">
-                  <span className="name-primary">新台幣</span>
-                  <span className="code-secondary">TWD</span>
+                  <span className="name-primary">日圓</span>
+                  <span className="code-secondary">JPY (基準)</span>
                 </div>
               </div>
               <button onClick={() => setView('list')} style={{ background: 'none', border: 'none', color: 'white' }}>
@@ -96,7 +114,7 @@ const App: React.FC = () => {
               </button>
             </div>
             <div className="big-amount-display">
-              {inputAmount === '0' ? '輸入金額' : inputAmount}
+              {inputAmount === '0' ? '1.00' : inputAmount}
             </div>
             <div className="keypad-grid">
               {['7', '8', '9', '10K', '4', '5', '6', '1K', '1', '2', '3', '100', '0', '.', 'backspace', '10'].map(k => (
@@ -105,7 +123,7 @@ const App: React.FC = () => {
                 </button>
               ))}
             </div>
-            <button className="convert-pill" onClick={() => setView('list')}>轉換</button>
+            <button className="convert-pill" onClick={() => setView('list')}>確認轉換</button>
           </motion.div>
         )}
       </AnimatePresence>
@@ -118,7 +136,7 @@ const App: React.FC = () => {
             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
           >
             <header className="native-header" style={{ padding: '20px 0' }}>
-              <span className="native-title" style={{ fontSize: '20px' }}>添加貨幣</span>
+              <span className="native-title" style={{ fontSize: '20px' }}>添加貨幣 ({settings.favoriteCurrencies.length}/20)</span>
               <div className="header-icons">
                 <button onClick={() => setView('list')} style={{ background: '#2ed158', border: 'none', borderRadius: '50%', color: 'white', padding: '4px' }}>
                   <Check size={24} />
@@ -145,10 +163,49 @@ const App: React.FC = () => {
                       <span className="code-secondary">{code}</span>
                     </div>
                   </div>
-                  {favorites.includes(code) ? <CheckCircle size={24} color="#2ed158" /> : <Circle size={24} color="#333" />}
+                  {settings.favoriteCurrencies.includes(code) ? <CheckCircle size={24} color="#2ed158" /> : <Circle size={24} color="#333" />}
                 </div>
               ))}
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 4. 匯率圖表視圖 (New Feature) */}
+      <AnimatePresence>
+        {view === 'chart' && (
+          <motion.div
+            className="keypad-view" style={{ background: '#000' }}
+            initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+          >
+            <header className="native-header" style={{ padding: '20px 0' }}>
+              <span className="native-title" style={{ fontSize: '20px' }}>匯率走勢</span>
+              <X size={28} onClick={() => setView('list')} />
+            </header>
+
+            <RateChart
+              currencyCode="USD"
+              data={[
+                { date: '01/15', rate: 0.0062 },
+                { date: '01/16', rate: 0.0063 },
+                { date: '01/17', rate: 0.0065 },
+                { date: '01/18', rate: 0.0064 },
+                { date: '01/19', rate: 0.0066 },
+                { date: '01/20', rate: 0.0068 },
+                { date: '01/21', rate: 0.0067 },
+              ]}
+            />
+
+            <nav className="bottom-nav">
+              <div className="nav-item" onClick={() => setView('list')}>
+                <Repeat size={24} />
+                <span>轉換</span>
+              </div>
+              <div className="nav-item active" onClick={() => setView('chart')}>
+                <TrendingUp size={24} />
+                <span>匯率圖</span>
+              </div>
+            </nav>
           </motion.div>
         )}
       </AnimatePresence>

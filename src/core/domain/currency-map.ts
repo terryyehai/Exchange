@@ -20,10 +20,24 @@ export const currencyToCountry: Record<string, string> = {
  * 貨幣符號映射
  */
 export const currencySymbols: Record<string, string> = {
-    USD: '$', TWD: 'NT$', JPY: '¥', EUR: '€', CNY: 'CN¥',
+    USD: 'US$', TWD: 'NT$', JPY: '¥', EUR: '€', CNY: 'CN¥',
     HKD: 'HK$', KRW: '₩', SGD: 'S$', GBP: '£', CHF: 'Fr',
     AUD: 'A$', CAD: 'C$', NZD: 'NZ$', THB: '฿', PHP: '₱',
     VND: '₫', MYR: 'RM', IDR: 'Rp', INR: '₹', ISK: 'kr'
+};
+
+/**
+ * 格式化匯率數值 (規格: 最多 6 位, 小於 1 則顯示 6 位)
+ */
+export const formatCurrencyValue = (value: number): string => {
+    if (value === 0) return '0';
+    if (value < 1) {
+        return value.toFixed(6);
+    }
+    return value.toLocaleString(undefined, {
+        maximumFractionDigits: 6,
+        minimumFractionDigits: 2
+    });
 };
 
 /**

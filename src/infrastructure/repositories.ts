@@ -24,17 +24,36 @@ export class ApiRateRepository implements IRateRepository {
 }
 
 /**
- * 本地儲存管理 (Favorites/Preferences)
+ * 本地儲存管理 (依據規格對齊匯存結構)
  */
-export class LocalStorageManager {
-    private readonly FAVORITES_KEY = 'exchange_favorites';
+export interface UserSettings {
+    baseCurrency: string;
+    favoriteCurrencies: string[];
+    lastUpdated: number;
+}
 
-    getFavorites(): string[] {
-        const data = localStorage.getItem(this.FAVORITES_KEY);
-        return data ? JSON.parse(data) : ['TWD', 'USD', 'JPY', 'EUR', 'CNY'];
+export class LocalStorageManager {
+    private readonly STORAGE_KEY = 'fx_currency_settings';
+
+    private readonly defaultSettings: UserSettings = {
+        baseCurrency: 'JPY',
+        favoriteCurrencies: ['USD', 'TWD', 'EUR', 'CNY', 'KRW'],
+        lastUpdated: Date.now()
+    };
+
+    getSettings(): UserSettings {
+        const data = localStorage.getItem(this.STORAGE_KEY);
+        if (!data) return this.defaultSettings;
+        try {
+            return JSON.parse(data);
+        } catch {
+            return this.defaultSettings;
+        }
     }
 
-    saveFavorites(favorites: string[]): void {
-        localStorage.setItem(this.FAVORITES_KEY, JSON.stringify(favorites));
+    saveSettings(settings: Partial<UserSettings>): void {
+        const current = this.getSettings();
+        const updated = { ...current, ...settings, lastUpdated: Date.now() };
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(updated));
     }
 }

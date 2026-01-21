@@ -88,10 +88,23 @@ export const useExchangeRate = () => {
         fetchRates(settings.baseCurrency);
     }, [settings.baseCurrency, fetchRates]);
 
-    const convert = (amount: number, targetCurrency: string): number => {
+    /**
+     * 計算任意貨幣間的換算 (Phase 5 Update)
+     * 支援從任意 Source Currency 換算到 Target Currency
+     */
+    const calculateExchange = (amount: number, sourceCode: string, targetCode: string): number => {
         if (!rates) return 0;
-        const toRate = rates.rates[targetCurrency] || 0;
-        return convertUseCase.execute(amount, 1, toRate);
+        // 如果來源就是 API Base (e.g. JPY/TWD), 直接取 Target Rate
+        // 如果不是, 則先換算回 Base, 再換算到 Target
+        // 但其實 ConvertCurrency UseCase 已經封裝了 (amount / fromRate) * toRate
+        // 只要傳入正確的相對於 Base 的匯率即可
+        const sourceRateRelToBase = rates.rates[sourceCode] || 1;
+        const targetRateRelToBase = rates.rates[targetCode] || 1;
+
+        // 特例：若 sourceCode 是 Base 本身 (例如 API Base 是 TWD, source 是 TWD, 則 rate = 1)
+        // 由於 rates.rates[base] 雖通常為 1 但有時可能不存在，需防呆
+
+        return convertUseCase.execute(amount, sourceRateRelToBase, targetRateRelToBase);
     };
 
     const getRateChange = (code: string): { value: number; percent: string; isUp: boolean } | null => {
@@ -131,6 +144,12 @@ export const useExchangeRate = () => {
         storage.saveSettings(newSettings);
     };
 
+    const reorderFavorites = (newOrder: string[]) => {
+        const newSettings = { ...settings, favoriteCurrencies: newOrder };
+        setSettings(newSettings);
+        storage.saveSettings(newSettings);
+    };
+
     const filteredCurrencies = useMemo(() => {
         if (!rates) return [];
         const allCodes = Object.keys(rates.rates);
@@ -153,10 +172,11 @@ export const useExchangeRate = () => {
         loading,
         error,
         settings,
-        convert,
+        calculateExchange,
         getRateChange,
         fetchHistory,
         toggleFavorite,
+        reorderFavorites,
         setBaseCurrency,
         refresh: () => fetchRates(settings.baseCurrency),
         searchTerm,

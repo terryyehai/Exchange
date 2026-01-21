@@ -68,8 +68,8 @@ export class LocalStorageManager {
     private readonly STORAGE_KEY = 'fx_currency_settings';
 
     private readonly defaultSettings: UserSettings = {
-        baseCurrency: 'JPY',
-        favoriteCurrencies: ['USD', 'TWD', 'EUR', 'CNY', 'KRW'],
+        baseCurrency: 'TWD',
+        favoriteCurrencies: ['TWD', 'CNY', 'USD', 'ISK', 'EUR', 'JPY', 'KRW', 'NZD'],
         lastUpdated: Date.now()
     };
 

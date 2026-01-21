@@ -1,28 +1,33 @@
 import React, { useState } from 'react';
 import { useExchangeRate } from './presentation/hooks/useExchangeRate';
 import './presentation/styles/global.css';
-import { Search, Plus, MoreHorizontal, Repeat, TrendingUp, X, Delete, Check, CheckCircle, Circle } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Search, Plus, MoreHorizontal, Repeat, TrendingUp, X, Delete, Check, CheckCircle, Circle, RefreshCw, ArrowUpDown } from 'lucide-react';
+import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { getFlagUrl, getCurrencyName, currencySymbols, formatCurrencyValue } from './core/domain/currency-map';
 import { RateChart } from './presentation/components/RateChart';
 
 const App: React.FC = () => {
   const [view, setView] = useState<'list' | 'input' | 'picker' | 'chart'>('list');
-  const [inputAmount, setInputAmount] = useState<string>('0');
+  const [inputAmount, setInputAmount] = useState<string>('1');
+  const [sourceCurrency, setSourceCurrency] = useState<string>('TWD'); // 預設來源幣別
   const [selectedChartCode, setSelectedChartCode] = useState<string>('USD');
-  const [chartDays, setChartDays] = useState<number>(30); // 預設 30 天
+  const [chartDays, setChartDays] = useState<number>(30);
+  const [isReordering, setIsReordering] = useState<boolean>(false);
+
   const {
     rates,
-    convert,
+    calculateExchange,
     filteredCurrencies,
     searchTerm,
     setSearchTerm,
     toggleFavorite,
+    reorderFavorites,
     getRateChange,
     fetchHistory,
     historyData,
     settings,
-    error
+    error,
+    refresh
   } = useExchangeRate();
 
   const handleKeyPress = (key: string) => {
@@ -39,6 +44,13 @@ const App: React.FC = () => {
     }
   };
 
+  const handleCurrencyClick = (code: string) => {
+    if (isReordering) return;
+    setSourceCurrency(code);
+    setInputAmount('0');
+    setView('input');
+  };
+
   // 當切換到圖表視圖、切換貨幣或切換時間範圍時，獲取歷史數據
   React.useEffect(() => {
     if (view === 'chart') {
@@ -46,60 +58,85 @@ const App: React.FC = () => {
     }
   }, [view, selectedChartCode, chartDays, fetchHistory, settings.baseCurrency]);
 
+  const currentAmount = Number(inputAmount);
+
   return (
     <div className="app-container">
-      {/* 1. 主清單視圖 (Image 1 + Spec) */}
+      {/* 1. 主清單視圖 */}
       {view === 'list' && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
           <header className="native-header">
             <span className="native-title">FX Currency</span>
             <div className="header-icons">
+              <button onClick={refresh} style={{ background: 'none', border: 'none', color: '#888' }}>
+                <RefreshCw size={24} />
+              </button>
+              <button
+                onClick={() => setIsReordering(!isReordering)}
+                style={{ background: 'none', border: 'none', color: isReordering ? '#2ed158' : '#888' }}
+              >
+                <ArrowUpDown size={26} />
+              </button>
               <Plus size={28} onClick={() => { setSearchTerm(''); setView('picker'); }} />
-              <MoreHorizontal size={28} />
             </div>
           </header>
 
           {error && <div style={{ color: '#ff3b30', padding: '0 10px', fontSize: '12px', marginBottom: '10px' }}>{error}</div>}
 
-          <div className="native-list">
-            {/* JPY 基準列 (固定顯示) */}
-            <div className="native-item" key="base-jpy">
-              <div className="item-left">
-                <img src={getFlagUrl('JPY')} alt="JPY" className="round-flag" />
-                <div className="info-stacked">
-                  <span className="name-primary">日圓</span>
-                  <span className="code-secondary">JPY</span>
-                </div>
-              </div>
-              <div className="value-bubble" style={{ opacity: 0.8 }}>
-                ¥1
-              </div>
-            </div>
+          <div className="native-list" style={{ flex: 1, overflowY: 'auto' }}>
+            {isReordering ? (
+              <Reorder.Group axis="y" values={settings.favoriteCurrencies} onReorder={reorderFavorites}>
+                {settings.favoriteCurrencies.map(code => (
+                  <Reorder.Item key={code} value={code} className="native-item" style={{ cursor: 'grab', background: '#1c1c1c', marginBottom: 2 }}>
+                    <div className="item-left">
+                      <img src={getFlagUrl(code)} alt={code} className="round-flag" />
+                      <div className="info-stacked">
+                        <span className="name-primary">{getCurrencyName(code)}</span>
+                        <span className="code-secondary">{code}</span>
+                      </div>
+                    </div>
+                    <ArrowUpDown size={20} color="#666" />
+                  </Reorder.Item>
+                ))}
+              </Reorder.Group>
+            ) : (
+              <>
+                {settings.favoriteCurrencies.map(code => {
+                  const change = getRateChange(code);
+                  // 計算顯示數值：若該列是用戶選定的來源，則顯示輸入值，否則顯示換算結果
+                  const displayValue = code === sourceCurrency
+                    ? currentAmount
+                    : calculateExchange(currentAmount, sourceCurrency, code);
 
-            {settings.favoriteCurrencies.filter(c => c !== 'JPY').map(code => {
-              const change = getRateChange(code);
-              return (
-                <div key={code} className="native-item" onClick={() => setView('input')}>
-                  <div className="item-left">
-                    <img src={getFlagUrl(code)} alt={code} className="round-flag" />
-                    <div className="info-stacked">
-                      <span className="name-primary">{getCurrencyName(code)}</span>
-                      <span className="code-secondary">{code}</span>
-                    </div>
-                  </div>
-                  <div className="item-right">
-                    <div className="value-bubble">
-                      {currencySymbols[code] || ''} {formatCurrencyValue(convert(Number(inputAmount) || 1, code))}
-                    </div>
-                    {change && (
-                      <span className={`rate-change ${change.isUp ? 'up' : 'down'}`}>
-                        {change.percent}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+                  return (
+                    <motion.div
+                      key={code}
+                      className="native-item"
+                      onClick={() => handleCurrencyClick(code)}
+                      whileTap={{ scale: 0.98, backgroundColor: 'rgba(255,255,255,0.05)' }}
+                    >
+                      <div className="item-left">
+                        <img src={getFlagUrl(code)} alt={code} className="round-flag" />
+                        <div className="info-stacked">
+                          <span className="name-primary">{getCurrencyName(code)}</span>
+                          <span className="code-secondary">{code}</span>
+                        </div>
+                      </div>
+                      <div className="item-right">
+                        <div className={`value-bubble ${code === sourceCurrency ? 'active-source' : ''}`} style={code === sourceCurrency ? { background: '#2ed158', color: '#000' } : {}}>
+                          {currencySymbols[code] || ''} {formatCurrencyValue(displayValue)}
+                        </div>
+                        {change && (
+                          <span className={`rate-change ${change.isUp ? 'up' : 'down'}`}>
+                            {change.percent}
+                          </span>
+                        )}
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </>
+            )}
           </div>
 
           <nav className="bottom-nav">
@@ -119,7 +156,7 @@ const App: React.FC = () => {
         </motion.div>
       )}
 
-      {/* 2. 數字鍵盤輸入 (Image 3) */}
+      {/* 2. 數字鍵盤輸入 */}
       <AnimatePresence>
         {view === 'input' && (
           <motion.div
@@ -129,10 +166,10 @@ const App: React.FC = () => {
           >
             <div className="input-header">
               <div className="item-left">
-                <img src={getFlagUrl('JPY')} alt="JPY" className="round-flag" />
+                <img src={getFlagUrl(sourceCurrency)} alt={sourceCurrency} className="round-flag" />
                 <div className="info-stacked">
-                  <span className="name-primary">日圓</span>
-                  <span className="code-secondary">JPY (基準)</span>
+                  <span className="name-primary">{getCurrencyName(sourceCurrency)}</span>
+                  <span className="code-secondary">{sourceCurrency} (來源)</span>
                 </div>
               </div>
               <button onClick={() => setView('list')} style={{ background: 'none', border: 'none', color: 'white' }}>
@@ -140,7 +177,7 @@ const App: React.FC = () => {
               </button>
             </div>
             <div className="big-amount-display">
-              {inputAmount === '0' ? '1.00' : inputAmount}
+              {inputAmount === '0' ? currencySymbols[sourceCurrency] : inputAmount}
             </div>
             <div className="keypad-grid">
               {['7', '8', '9', '10K', '4', '5', '6', '1K', '1', '2', '3', '100', '0', '.', 'backspace', '10'].map(k => (
@@ -154,7 +191,7 @@ const App: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* 3. 添加貨幣選擇器 (Image 2) */}
+      {/* 3. 添加貨幣選擇器 */}
       <AnimatePresence>
         {view === 'picker' && (
           <motion.div
@@ -197,7 +234,7 @@ const App: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* 4. 匯率圖表視圖 (Phase 5: Real History) */}
+      {/* 4. 匯率圖表視圖 */}
       <AnimatePresence>
         {view === 'chart' && (
           <motion.div
@@ -213,7 +250,7 @@ const App: React.FC = () => {
             </header>
 
             <div className="chart-selector" style={{ display: 'flex', gap: '8px', overflowX: 'auto', padding: '10px 0', marginBottom: '20px' }}>
-              {settings.favoriteCurrencies.filter(c => c !== 'JPY').map(c => (
+              {settings.favoriteCurrencies.map(c => (
                 <button
                   key={c}
                   onClick={() => setSelectedChartCode(c)}

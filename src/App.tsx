@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useExchangeRate } from './presentation/hooks/useExchangeRate';
 import './presentation/styles/global.css';
-import { Search, Plus, MoreHorizontal, Repeat, TrendingUp, X, Delete, Check, CheckCircle, Circle, RefreshCw, ArrowUpDown } from 'lucide-react';
+import { Search, Plus, Repeat, TrendingUp, X, Delete, Check, CheckCircle, Circle, RefreshCw, ArrowUpDown } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { getFlagUrl, getCurrencyName, currencySymbols, formatCurrencyValue } from './core/domain/currency-map';
 import { RateChart } from './presentation/components/RateChart';

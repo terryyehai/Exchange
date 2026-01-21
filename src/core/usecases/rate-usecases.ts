@@ -1,10 +1,14 @@
-import { IRateRepository, ExchangeRate } from '../domain/entities';
+import type { IRateRepository, ExchangeRate } from '../domain/entities';
 
 /**
  * 獲取最新匯率的 Use Case
  */
 export class GetLatestRates {
-    constructor(private rateRepo: IRateRepository) { }
+    private rateRepo: IRateRepository;
+
+    constructor(rateRepo: IRateRepository) {
+        this.rateRepo = rateRepo;
+    }
 
     async execute(base: string = 'USD'): Promise<ExchangeRate> {
         try {

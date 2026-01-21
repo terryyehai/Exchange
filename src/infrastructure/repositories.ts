@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ExchangeRate, IRateRepository } from '../core/domain/entities';
+import type { ExchangeRate, IRateRepository } from '../core/domain/entities';
 
 /**
  * 實作外部 API 串接 (Infrastructure Layer)

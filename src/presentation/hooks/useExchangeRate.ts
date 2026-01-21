@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ApiRateRepository, LocalStorageManager } from '../../infrastructure/repositories';
 import { GetLatestRates, ConvertCurrency } from '../../core/usecases/rate-usecases';
-import { ExchangeRate } from '../../core/domain/entities';
+import type { ExchangeRate } from '../../core/domain/entities';
 
 const rateRepo = new ApiRateRepository();
 const storage = new LocalStorageManager();

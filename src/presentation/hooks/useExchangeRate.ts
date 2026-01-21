@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { ApiRateRepository, LocalStorageManager } from '../../infrastructure/repositories';
 import { GetLatestRates, ConvertCurrency } from '../../core/usecases/rate-usecases';
 import type { ExchangeRate } from '../../core/domain/entities';
-import { getCurrencyName, currencyToCountry } from '../../core/domain/currency-map';
+import { getCurrencyName } from '../../core/domain/currency-map';
 
 const rateRepo = new ApiRateRepository();
 const storage = new LocalStorageManager();

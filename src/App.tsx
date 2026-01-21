@@ -16,8 +16,7 @@ const App: React.FC = () => {
     searchTerm,
     setSearchTerm,
     filteredCurrencies,
-    toggleFavorite,
-    favorites
+    toggleFavorite
   } = useExchangeRate('USD');
 
   return (
